@@ -1,0 +1,61 @@
+# genotype-inference-pedigree
+def cross(p1, p2):
+    result = [0.0, 0.0, 0.0]
+    for i, g1 in enumerate(["AA", "Aa", "aa"]):
+        for j, g2 in enumerate(["AA", "Aa", "aa"]):
+            prob = p1[i] * p2[j]
+            if g1 == "AA" and g2 == "AA":
+                result[0] += prob
+            elif (g1 == "AA" and g2 == "Aa") or (g1 == "Aa" and g2 == "AA"):
+                result[0] += prob * 0.5
+                result[1] += prob * 0.5
+            elif (g1 == "AA" and g2 == "aa") or (g1 == "aa" and g2 == "AA"):
+                result[1] += prob
+            elif g1 == "Aa" and g2 == "Aa":
+                result[0] += prob * 0.25
+                result[1] += prob * 0.5
+                result[2] += prob * 0.25
+            elif (g1 == "Aa" and g2 == "aa") or (g1 == "aa" and g2 == "Aa"):
+                result[1] += prob * 0.5
+                result[2] += prob * 0.5
+            elif g1 == "aa" and g2 == "aa":
+                result[2] += prob
+    return result
+genotype_probs = {
+    "AA": [1.0, 0.0, 0.0],
+    "Aa": [0.0, 1.0, 0.0],
+    "aa": [0.0, 0.0, 1.0]
+}
+class Node:
+    def __init__(self, left=None, right=None, value=None):
+        self.left = left
+        self.right = right
+        self.value = value
+def parse_newick(s):
+    stack = []
+    token = ''
+    for c in s:
+        if c in '(),;':
+            if token:
+                stack.append(Node(value=token))
+                token = ''
+            if c == ')':
+                right = stack.pop()
+                left = stack.pop()
+                stack.pop()  # remove '(' marker
+                stack.append(Node(left, right))
+            elif c == '(':
+                stack.append('(')
+        elif c.strip():
+            token += c
+    return stack[0]  # root node
+def compute_probs(node):
+    if node.value:
+        return genotype_probs[node.value]
+    left = compute_probs(node.left)
+    right = compute_probs(node.right)
+    return cross(left, right)
+newick = "((((Aa,aa),(Aa,Aa)),((aa,aa),(aa,AA))),Aa);"
+tree = parse_newick(newick)
+result = compute_probs(tree)
+print(f"{result[0]:.3f} {result[1]:.3f} {result[2]:.3f}")
